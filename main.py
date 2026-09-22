@@ -19,11 +19,11 @@ HTML_CONTENT = """
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
         body { background-color: #050b14; color: #00f0ff; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; text-align: center; }
-        .hud-circle { width: 180px; height: 180px; border-radius: 50%; border: 4px solid #00f0ff; box-shadow: 0 0 30px #00f0ff, inset 0 0 20px #00f0ff; display: flex; align-items: center; justify-content: center; margin-bottom: 25px; cursor: pointer; transition: 0.3s; }
+        .hud-circle { width: 170px; height: 170px; border-radius: 50%; border: 4px solid #00f0ff; box-shadow: 0 0 30px #00f0ff, inset 0 0 20px #00f0ff; display: flex; align-items: center; justify-content: center; margin-bottom: 25px; cursor: pointer; transition: 0.3s; }
         .hud-circle.active { border-color: #ff0055; box-shadow: 0 0 40px #ff0055, inset 0 0 25px #ff0055; transform: scale(1.08); }
-        .hud-circle span { font-size: 18px; font-weight: bold; letter-spacing: 2px; }
-        .status-box { font-size: 15px; color: #7feaff; margin-bottom: 20px; min-height: 25px; padding: 0 15px; }
-        .chat-box { width: 90%; max-width: 450px; background: rgba(0, 240, 255, 0.05); border: 1px solid rgba(0, 240, 255, 0.2); border-radius: 12px; padding: 15px; text-align: left; }
+        .hud-circle span { font-size: 16px; font-weight: bold; letter-spacing: 2px; }
+        .status-box { font-size: 14px; color: #7feaff; margin-bottom: 20px; min-height: 25px; padding: 0 15px; }
+        .chat-box { width: 90%; max-width: 420px; background: rgba(0, 240, 255, 0.05); border: 1px solid rgba(0, 240, 255, 0.2); border-radius: 12px; padding: 15px; text-align: left; }
         .msg { margin: 8px 0; font-size: 14px; line-height: 1.4; }
         .user-msg { color: #fff; }
         .cyrus-msg { color: #00f0ff; font-weight: 600; }
@@ -35,7 +35,7 @@ HTML_CONTENT = """
         <span id="btnText">TAP TO SPEAK</span>
     </div>
 
-    <div class="status-box" id="status">Ready Boss. Tap the circle and speak!</div>
+    <div class="status-box" id="status">Ready Boss. Tap circle to speak!</div>
 
     <div class="chat-box" id="chat">
         <div class="msg cyrus-msg">Cyrus: System Online Boss. Ready for commands.</div>
@@ -61,18 +61,18 @@ HTML_CONTENT = """
                 isListening = true;
                 micBtn.classList.add('active');
                 btnText.innerText = "LISTENING...";
-                statusBox.innerText = "Listening to you Boss...";
+                statusBox.innerText = "Listening...";
             };
 
             recognition.onresult = async (event) => {
                 const speechResult = event.results[0][0].transcript;
                 appendMsg("Boss: " + speechResult, "user-msg");
-                statusBox.innerText = "Processing...";
+                statusBox.innerText = "Thinking...";
                 await sendToCyrus(speechResult);
             };
 
             recognition.onerror = (event) => {
-                statusBox.innerText = "Recognition error: " + event.error;
+                statusBox.innerText = "Error: " + event.error;
                 resetBtn();
             };
 
@@ -80,7 +80,7 @@ HTML_CONTENT = """
                 resetBtn();
             };
         } else {
-            statusBox.innerText = "Speech API not supported in this browser. Please use Chrome.";
+            statusBox.innerText = "Use Google Chrome for Voice Support.";
         }
 
         function resetBtn() {
@@ -124,9 +124,9 @@ HTML_CONTENT = """
                 const data = await res.json();
                 appendMsg("Cyrus: " + data.reply, "cyrus-msg");
                 speakText(data.reply);
-                statusBox.innerText = "Standing by Boss.";
+                statusBox.innerText = "Ready Boss.";
             } catch (err) {
-                statusBox.innerText = "Server error!";
+                statusBox.innerText = "Connection failed!";
             }
         }
     </script>
@@ -142,24 +142,21 @@ def get_ui():
 def process_command(data: VoicePayload):
     cmd = data.query.lower().strip()
 
-    # 1. Date Check
     if any(w in cmd for w in ["tarikh", "tareekh", "date", "din", "aaj"]):
         now = datetime.now()
         months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
         dt = f"{now.day} {months[now.month - 1]} {now.year}"
         return {"reply": f"Boss, aaj tareekh hai {dt}."}
 
-    # 2. Time Check
     if any(w in cmd for w in ["time", "samay", "waqt", "baje"]):
         now = datetime.now()
         tm = now.strftime("%I bajke %M minute %p")
         return {"reply": f"Boss, abhi samay ho raha hai {tm}."}
 
-    # 3. Identity & Small Talk
     if any(w in cmd for w in ["kaun ho", "who are you", "naam kya"]):
         return {"reply": "Main Cyrus hoon, aapka personal Jarvis AI assistant."}
 
     if any(w in cmd for w in ["kaise ho", "kya haal"]):
-        return {"reply": "Main hamesha ready hoon Boss. Aap bataiye aaj ka kya mission hai?"}
+        return {"reply": "Main badhiya hoon Boss, aap batayein kya madad karoon?"}
 
-    return {"reply": f"Ji Boss, maine note kar liya: {cmd}"}
+    return {"reply": f"Ji Boss, maine sun liya: {cmd}"}
