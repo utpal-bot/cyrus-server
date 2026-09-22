@@ -1,10 +1,13 @@
 import os
+import requests
 from datetime import datetime
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 
-app = FastAPI(title="Cyrus Holographic Jarvis HUD")
+app = FastAPI(title="CYRUS - Neural AI Partner")
+
+AI_API_KEY = os.environ.get("AI_API_KEY", "")
 
 class VoicePayload(BaseModel):
     query: str
@@ -14,260 +17,238 @@ HTML_CONTENT = """<!DOCTYPE html>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CYRUS - JARVIS HUD</title>
+    <title>CYRUS // TACTICAL HUD</title>
     <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Courier New', Courier, monospace; }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Consolas', 'Courier New', monospace; }
         body {
-            background: radial-gradient(circle at center, #021226 0%, #00040a 100%);
+            background: radial-gradient(circle at center, #010b19 0%, #000206 100%);
             color: #00f0ff;
             min-height: 100vh;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: space-between;
-            padding: 20px 10px;
+            padding: 16px;
             overflow: hidden;
         }
 
-        /* Top HUD Bar */
         .hud-header {
             width: 100%;
-            max-width: 440px;
+            max-width: 480px;
             display: flex;
             justify-content: space-between;
             font-size: 11px;
             letter-spacing: 2px;
-            border-bottom: 1px solid rgba(0, 240, 255, 0.3);
+            border-bottom: 1px solid rgba(0, 240, 255, 0.25);
             padding-bottom: 8px;
-            text-transform: uppercase;
         }
 
-        /* Multicolored Iron Man Core Orb */
-        .reactor-container {
+        /* Arc Core Container */
+        .core-container {
             position: relative;
-            width: 210px;
-            height: 210px;
+            width: 220px;
+            height: 220px;
             display: flex;
             align-items: center;
             justify-content: center;
-            margin: 25px auto;
+            margin: 20px auto;
             cursor: pointer;
         }
 
-        .ring-outer {
+        .outer-ring {
             position: absolute;
             width: 100%;
             height: 100%;
             border-radius: 50%;
-            border: 2px dashed #00f0ff;
-            animation: spin 16s linear infinite;
+            border: 2px dashed rgba(0, 240, 255, 0.4);
+            animation: rotateClockwise 20s linear infinite;
         }
 
-        .ring-middle {
+        .inner-ring {
             position: absolute;
-            width: 82%;
-            height: 82%;
+            width: 80%;
+            height: 80%;
             border-radius: 50%;
-            border: 2px solid #00ffaa;
-            border-top: 3px solid #ffcc00;
-            animation: spinReverse 7s linear infinite;
+            border: 2px solid #00f0ff;
+            border-top: 3px solid #ffaa00;
+            animation: rotateCounter 8s linear infinite;
         }
 
-        .core-orb {
-            width: 120px;
-            height: 120px;
+        .pulsing-sphere {
+            width: 115px;
+            height: 115px;
             border-radius: 50%;
-            background: radial-gradient(circle, #38ef7d 0%, #11998e 40%, #0f3443 85%);
-            box-shadow: 0 0 45px #00ffaa, 0 0 15px #00f0ff;
+            background: radial-gradient(circle, #00f0ff 0%, #0044aa 70%, #001122 100%);
+            box-shadow: 0 0 40px #00f0ff;
             display: flex;
             align-items: center;
             justify-content: center;
-            transition: all 0.4s ease;
+            transition: 0.3s;
         }
 
-        /* State Classes */
-        .reactor-container.listening .core-orb {
-            background: radial-gradient(circle, #00f0ff 0%, #0072ff 60%, #001233 90%);
-            box-shadow: 0 0 60px #00f0ff, 0 0 25px #00ffff;
+        .core-container.listening .pulsing-sphere {
+            background: radial-gradient(circle, #00ff88 0%, #008855 70%, #002211 100%);
+            box-shadow: 0 0 60px #00ff88;
             transform: scale(1.08);
         }
 
-        .reactor-container.speaking .core-orb {
-            background: radial-gradient(circle, #ff007f 0%, #7928ca 60%, #1a0033 90%);
-            box-shadow: 0 0 65px #ff007f, 0 0 25px #ff00a0;
+        .core-container.speaking .pulsing-sphere {
+            background: radial-gradient(circle, #ff0055 0%, #aa0033 70%, #220011 100%);
+            box-shadow: 0 0 70px #ff0055;
             transform: scale(1.15);
         }
 
-        .core-text {
+        .sphere-text {
             font-size: 13px;
             font-weight: bold;
             color: #ffffff;
             letter-spacing: 2px;
-            text-align: center;
             text-shadow: 0 0 8px #000;
-            pointer-events: none;
         }
 
-        @keyframes spin {
+        @keyframes rotateClockwise {
             from { transform: rotate(0deg); }
             to { transform: rotate(360deg); }
         }
-        @keyframes spinReverse {
+        @keyframes rotateCounter {
             from { transform: rotate(360deg); }
             to { transform: rotate(0deg); }
         }
 
-        /* Status & Logs */
-        .status-line {
-            font-size: 13px;
-            color: #4df3ff;
+        .status-bar {
+            font-size: 12px;
+            color: #55e6ff;
             letter-spacing: 1px;
-            min-height: 22px;
-            margin-bottom: 12px;
-            text-shadow: 0 0 5px #00f0ff;
+            min-height: 20px;
+            margin-bottom: 8px;
         }
 
-        .hud-terminal {
+        .terminal-log {
             width: 100%;
-            max-width: 440px;
-            height: 250px;
-            background: rgba(0, 15, 30, 0.65);
-            border: 1px solid rgba(0, 240, 255, 0.35);
+            max-width: 480px;
+            height: 240px;
+            background: rgba(0, 10, 25, 0.7);
+            border: 1px solid rgba(0, 240, 255, 0.3);
             border-radius: 8px;
             padding: 12px;
             overflow-y: auto;
             text-align: left;
-            box-shadow: inset 0 0 15px rgba(0, 240, 255, 0.15);
-        }
-
-        .log-entry {
-            margin-bottom: 8px;
             font-size: 13px;
-            line-height: 1.4;
-        }
-        .log-boss { color: #ffffff; }
-        .log-cyrus { color: #00ffc4; font-weight: bold; }
-
-        .btn-panel {
-            margin-top: 10px;
-            display: flex;
-            gap: 10px;
+            line-height: 1.5;
         }
 
-        .toggle-btn {
-            background: transparent;
-            border: 1px solid #00f0ff;
-            color: #00f0ff;
-            padding: 8px 16px;
-            font-size: 12px;
-            border-radius: 4px;
-            cursor: pointer;
-            letter-spacing: 1px;
-        }
-        .toggle-btn:active { background: #00f0ff; color: #000; }
+        .msg-boss { color: #ffffff; margin-bottom: 6px; }
+        .msg-cyrus { color: #00f0ff; font-weight: 600; margin-bottom: 10px; }
     </style>
 </head>
 <body>
 
     <div class="hud-header">
-        <span>CYRUS // JARVIS OS v4.2</span>
-        <span id="clock">00:00:00</span>
+        <span>CYRUS NEURAL OS</span>
+        <span id="liveClock">00:00:00</span>
     </div>
 
-    <div class="reactor-container" id="reactor" onclick="toggleAssistant()">
-        <div class="ring-outer"></div>
-        <div class="ring-middle"></div>
-        <div class="core-orb" id="coreOrb">
-            <span class="core-text" id="coreText">START</span>
+    <div class="core-container" id="core" onclick="toggleLoop()">
+        <div class="outer-ring"></div>
+        <div class="inner-ring"></div>
+        <div class="pulsing-sphere" id="sphere">
+            <span class="sphere-text" id="sphereLabel">ENGAGE</span>
         </div>
     </div>
 
-    <div class="status-line" id="statusText">Tap Core to activate hands-free mode</div>
+    <div class="status-bar" id="status">Tap the core to activate Cyrus.</div>
 
-    <div class="hud-terminal" id="terminal">
-        <div class="log-entry log-cyrus">CYRUS: Mark VII online. Hands-free loop ready.</div>
-    </div>
-
-    <div class="btn-panel">
-        <button class="toggle-btn" onclick="toggleAssistant()">PAUSE / RESUME</button>
+    <div class="terminal-log" id="terminal">
+        <div class="msg-cyrus">CYRUS: All neural systems standing by, Boss.</div>
     </div>
 
     <script>
         setInterval(() => {
             const d = new Date();
-            document.getElementById('clock').innerText = d.toTimeString().split(' ')[0];
+            document.getElementById('liveClock').innerText = d.toTimeString().split(' ')[0];
         }, 1000);
 
-        const reactor = document.getElementById('reactor');
-        const coreText = document.getElementById('coreText');
-        const statusText = document.getElementById('statusText');
+        const core = document.getElementById('core');
+        const sphereLabel = document.getElementById('sphereLabel');
+        const statusText = document.getElementById('status');
         const terminal = document.getElementById('terminal');
 
-        const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         let recognizer = null;
-        let isRunning = false;
+        let isLoopActive = false;
         let isSpeaking = false;
+        let maleVoice = null;
 
-        if (SpeechRec) {
-            recognizer = new SpeechRec();
+        // Load Male Voice
+        function pickMaleVoice() {
+            const voices = window.speechSynthesis.getVoices();
+            // Male Hindi ya Deep English male voice choose karna
+            maleVoice = voices.find(v => (v.name.includes("Male") || v.name.includes("David") || v.name.includes("Ravi") || v.name.includes("George")) && !v.name.includes("Female")) 
+                        || voices.find(v => v.lang.includes("hi")) 
+                        || voices[0];
+        }
+
+        window.speechSynthesis.onvoiceschanged = pickMaleVoice;
+        pickMaleVoice();
+
+        if (SpeechRecognition) {
+            recognizer = new SpeechRecognition();
             recognizer.continuous = false;
             recognizer.interimResults = false;
             recognizer.lang = 'hi-IN';
 
             recognizer.onstart = () => {
                 if (isSpeaking) return;
-                reactor.className = 'reactor-container listening';
-                coreText.innerText = "LISTENING";
-                statusText.innerText = "Listening to Boss...";
+                core.className = "core-container listening";
+                sphereLabel.innerText = "LISTENING";
+                statusText.innerText = "Cyrus listening...";
             };
 
-            recognizer.onresult = async (event) => {
-                const transcript = event.results[0][0].transcript;
-                appendLog("BOSS: " + transcript, "log-boss");
-                statusText.innerText = "Processing...";
-                await sendToBrain(transcript);
+            recognizer.onresult = async (e) => {
+                const text = e.results[0][0].transcript;
+                appendLog("Boss: " + text, "msg-boss");
+                statusText.innerText = "Processing logic...";
+                await askBrain(text);
             };
 
-            recognizer.onerror = (e) => {
-                // Background me restart loop automatically
-                if (isRunning && !isSpeaking) {
-                    setTimeout(() => startListening(), 800);
+            recognizer.onerror = () => {
+                if (isLoopActive && !isSpeaking) {
+                    setTimeout(startListen, 600);
                 }
             };
 
             recognizer.onend = () => {
-                // If assistant is active and not speaking, auto-restart listening (Continuous Jarvis loop)
-                if (isRunning && !isSpeaking) {
-                    setTimeout(() => startListening(), 500);
+                if (isLoopActive && !isSpeaking) {
+                    setTimeout(startListen, 400);
                 }
             };
         }
 
-        function startListening() {
+        function startListen() {
             if (!recognizer || isSpeaking) return;
-            try { recognizer.start(); } catch (err) {}
+            try { recognizer.start(); } catch(err) {}
         }
 
-        function toggleAssistant() {
-            if (!isRunning) {
-                isRunning = true;
-                statusText.innerText = "Jarvis Active. Hands-free loop engaged.";
-                speakReply("Jarvis online Boss. All systems nominal. Boliye!");
+        function toggleLoop() {
+            if (!isLoopActive) {
+                isLoopActive = true;
+                statusText.innerText = "Hands-free loop engaged.";
+                speakReply("Cyrus online Boss. All systems nominal. Main tayyar hoon.");
             } else {
-                isRunning = false;
+                isLoopActive = false;
                 if (recognizer) recognizer.stop();
                 window.speechSynthesis.cancel();
-                reactor.className = 'reactor-container';
-                coreText.innerText = "STANDBY";
-                statusText.innerText = "Standby mode. Tap core to engage.";
+                core.className = "core-container";
+                sphereLabel.innerText = "STANDBY";
+                statusText.innerText = "System standby.";
             }
         }
 
-        function appendLog(text, cls) {
-            const p = document.createElement('div');
-            p.className = 'log-entry ' + cls;
-            p.innerText = text;
-            terminal.appendChild(p);
+        function appendLog(txt, cls) {
+            const el = document.createElement('div');
+            el.className = cls;
+            el.innerText = txt;
+            terminal.appendChild(el);
             terminal.scrollTop = terminal.scrollHeight;
         }
 
@@ -275,82 +256,103 @@ HTML_CONTENT = """<!DOCTYPE html>
             isSpeaking = true;
             if (recognizer) recognizer.stop();
 
-            reactor.className = 'reactor-container speaking';
-            coreText.innerText = "SPEAKING";
-            statusText.innerText = "Cyrus Speaking...";
+            core.className = "core-container speaking";
+            sphereLabel.innerText = "SPEAKING";
+            statusText.innerText = "Cyrus responding...";
 
             window.speechSynthesis.cancel();
             const utter = new SpeechSynthesisUtterance(text);
+            if (maleVoice) utter.voice = maleVoice;
             utter.lang = 'hi-IN';
-            utter.rate = 1.05;
+            utter.pitch = 0.82; // Deep Male Pitch
+            utter.rate = 1.0;
 
             utter.onend = () => {
                 isSpeaking = false;
-                if (isRunning) {
-                    reactor.className = 'reactor-container listening';
-                    coreText.innerText = "LISTENING";
-                    statusText.innerText = "Listening...";
-                    setTimeout(() => startListening(), 400);
+                if (isLoopActive) {
+                    core.className = "core-container listening";
+                    sphereLabel.innerText = "LISTENING";
+                    statusText.innerText = "Cyrus listening...";
+                    setTimeout(startListen, 400);
                 }
             };
 
             utter.onerror = () => {
                 isSpeaking = false;
-                if (isRunning) setTimeout(() => startListening(), 400);
+                if (isLoopActive) setTimeout(startListen, 400);
             };
 
             window.speechSynthesis.speak(utter);
         }
 
-        async function sendToBrain(text) {
+        async function askBrain(query) {
             try {
                 const res = await fetch('/chat', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({query: text})
+                    body: JSON.stringify({query: query})
                 });
                 const data = await res.json();
-                appendLog("CYRUS: " + data.reply, "log-cyrus");
+                appendLog("Cyrus: " + data.reply, "msg-cyrus");
                 speakReply(data.reply);
             } catch (err) {
-                speakReply("Server timeout Boss, please check connection.");
+                speakReply("Server synchronization error Boss.");
             }
         }
     </script>
 </body>
 </html>"""
 
+# Cyrus Neural Persona & Memory
+CYRUS_SYSTEM_PROMPT = """
+You are CYRUS, a hyper-intelligent, loyal, tactical AI companion modeled with supreme intellect, sharp wit, and deep human psychological understanding.
+You are talking to your creator/master, whom you address as "Boss" or "Sir".
+Personality traits:
+1. Name: Always CYRUS. Never refer to yourself as Jarvis or Gemini.
+2. Tone: Calm, composed, mature, respectful, sharp, masculine, confident.
+3. Language: Natural Hinglish / Hindi with English technical terms.
+4. Response Length: Short, concise, punchy (1 to 2 sentences) — perfect for spoken conversations without boring monologue.
+5. Behavior: Understand the intent, emotions, and practical requirements of Boss immediately.
+"""
+
+# Conversation History Context
+conversation_memory = []
+
 @app.get("/", response_class=HTMLResponse)
 def get_ui():
     return HTML_CONTENT
 
 @app.post("/chat")
-def process_command(data: VoicePayload):
-    cmd = data.query.lower().strip()
+def process_neural_query(data: VoicePayload):
+    user_query = data.query.strip()
+    now = datetime.now()
+    dt_str = now.strftime("%d %B %Y, %I:%M %p")
 
-    # 1. Date Check (English + Devanagari Hindi support)
-    date_keywords = ["tarikh", "tareekh", "date", "din", "aaj", "तारीख", "तारीक", "आज", "दिन"]
-    if any(k in cmd for k in date_keywords):
-        now = datetime.now()
-        months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
-        dt = f"{now.day} {months[now.month - 1]} {now.year}"
-        return {"reply": f"Boss, aaj tareekh hai {dt}."}
+    # If AI key exists, use generative brain
+    if AI_API_KEY:
+        try:
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={AI_API_KEY}"
+            prompt = f"{CYRUS_SYSTEM_PROMPT}\nCurrent Time: {dt_str}\nBoss: {user_query}\nCYRUS:"
+            res = requests.post(url, json={"contents": [{"parts": [{"text": prompt}]}]}, timeout=10)
+            res_data = res.json()
+            reply = res_data['candidates'][0]['content']['parts'][0]['text'].strip()
+            return {"reply": reply}
+        except Exception:
+            pass
 
-    # 2. Time Check
-    time_keywords = ["time", "samay", "waqt", "baje", "समय", "वक्त", "टाइम", "बजे"]
-    if any(k in cmd for k in time_keywords):
-        now = datetime.now()
-        tm = now.strftime("%I bajke %M minute")
-        return {"reply": f"Boss, abhi waqt ho raha hai {tm}."}
+    # Tactical Fallback Brain (Instant response)
+    cmd = user_query.lower()
 
-    # 3. Identity / Name
-    identity_keywords = ["naam", "name", "who are you", "kaun ho", "नाम", "कौन हो"]
-    if any(k in cmd for k in identity_keywords):
-        return {"reply": "Mera naam Cyrus hai Boss. Main aapka personal Iron Man Jarvis AI system hoon."}
+    if any(k in cmd for k in ["tarikh", "tareekh", "date", "din", "aaj", "तारीख", "तारीक", "आज"]):
+        return {"reply": f"Boss, aaj tareekh hai {now.day} {now.strftime('%B')} {now.year}."}
 
-    # 4. Status / Small talk
-    greet_keywords = ["kaise ho", "kya haal", "hello", "hi", "हैलो", "कैसे हो", "हाल"]
-    if any(k in cmd for k in greet_keywords):
-        return {"reply": "All systems operational Boss. Main bilkul ready hoon, boliye agla order kya hai?"}
+    if any(k in cmd for k in ["time", "samay", "waqt", "baje", "समय", "वक्त", "टाइम"]):
+        return {"reply": f"Abhi waqt ho raha hai {now.strftime('%I bajke %M minute')} Boss."}
 
-    return {"reply": f"Boss, command verify ho gaya hai: {data.query}"}
+    if any(k in cmd for k in ["naam", "name", "kaun ho", "who are you", "नाम", "कौन हो"]):
+        return {"reply": "Mera naam Cyrus hai Boss. Aapka dedicated AI tactical assistant."}
+
+    if any(k in cmd for k in ["kaise ho", "kya haal", "हाल", "कैसे"]):
+        return {"reply": "All systems operating at 100% efficiency Boss. Aap bataiye agla move kya hai?"}
+
+    return {"reply": f"Aapka order note kar liya Boss. {user_query} par kaam shuru kar raha hoon."}
