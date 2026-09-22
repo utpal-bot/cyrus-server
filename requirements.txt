@@ -1,6 +1,7 @@
 fastapi
 uvicorn
-supabase
+requests
 pydantic
-python-dateutil
+edge-tts
+
 
