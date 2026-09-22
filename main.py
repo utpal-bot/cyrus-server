@@ -23,7 +23,7 @@ HTML_CONTENT = """
         .hud-circle.active { border-color: #ff0055; box-shadow: 0 0 40px #ff0055, inset 0 0 25px #ff0055; transform: scale(1.08); }
         .hud-circle span { font-size: 16px; font-weight: bold; letter-spacing: 2px; }
         .status-box { font-size: 14px; color: #7feaff; margin-bottom: 20px; min-height: 25px; padding: 0 15px; }
-        .chat-box { width: 90%; max-width: 420px; background: rgba(0, 240, 255, 0.05); border: 1px solid rgba(0, 240, 255, 0.2); border-radius: 12px; padding: 15px; text-align: left; }
+        .chat-box { width: 90%; max-width: 420px; background: rgba(0, 240, 255, 0.05); border: 1px solid rgba(0, 240, 255, 0.2); border-radius: 12px; padding: 15px; text-align: left; max-height: 250px; overflow-y: auto; }
         .msg { margin: 8px 0; font-size: 14px; line-height: 1.4; }
         .user-msg { color: #fff; }
         .cyrus-msg { color: #00f0ff; font-weight: 600; }
@@ -110,7 +110,7 @@ HTML_CONTENT = """
             window.speechSynthesis.cancel();
             const utterance = new SpeechSynthesisUtterance(text);
             utterance.lang = 'hi-IN';
-            utterance.rate = 1.0;
+            utterance.rate = 1.05;
             window.speechSynthesis.speak(utterance);
         }
 
@@ -142,21 +142,22 @@ def get_ui():
 def process_command(data: VoicePayload):
     cmd = data.query.lower().strip()
 
-    if any(w in cmd for w in ["tarikh", "tareekh", "date", "din", "aaj"]):
+    # Broad keyword matching for date/time
+    if any(k in cmd for k in ["tarikh", "tareekh", "date", "din", "aaj"]):
         now = datetime.now()
         months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
         dt = f"{now.day} {months[now.month - 1]} {now.year}"
         return {"reply": f"Boss, aaj tareekh hai {dt}."}
 
-    if any(w in cmd for w in ["time", "samay", "waqt", "baje"]):
+    if any(k in cmd for k in ["time", "samay", "waqt", "baje"]):
         now = datetime.now()
         tm = now.strftime("%I bajke %M minute %p")
         return {"reply": f"Boss, abhi samay ho raha hai {tm}."}
 
-    if any(w in cmd for w in ["kaun ho", "who are you", "naam kya"]):
+    if any(k in cmd for k in ["kaun ho", "who are you", "naam kya"]):
         return {"reply": "Main Cyrus hoon, aapka personal Jarvis AI assistant."}
 
-    if any(w in cmd for w in ["kaise ho", "kya haal"]):
-        return {"reply": "Main badhiya hoon Boss, aap batayein kya madad karoon?"}
+    if any(k in cmd for k in ["kaise ho", "kya haal"]):
+        return {"reply": "Main ekdum badiya hoon Boss, bataiye kya help chahiye?"}
 
-    return {"reply": f"Ji Boss, maine sun liya: {cmd}"}
+    return {"reply": f"Ji Boss, samajh gaya: {data.query}"}
