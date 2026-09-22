@@ -1,37 +1,32 @@
 import os
-import asyncio
-import tempfile
 from datetime import datetime
-from fastapi import FastAPI, HTTPException
-from fastapi.responses import HTMLResponse, FileResponse
+from fastapi import FastAPI
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
-import edge_tts
 import requests
 
 app = FastAPI(title="CYRUS Autonomous OS")
 
-AI_KEY = os.environ.get("AI_API_KEY", "")
+GROQ_API_KEY = os.environ.get("Gsk_0I6gTknxRIAo8qEJntBOWGdyb3FYptpZG7zAoJ6UIe7dDBP14FQu", "")
 
 class QueryReq(BaseModel):
     query: str
 
-class SpeakReq(BaseModel):
-    text: str
-
-CYRUS_PROMPT = """
-You are CYRUS, a 15-year-old hyper-smart, witty, and loyal AI partner.
-Your creator and master is Rudra, whom you address with high respect as "Boss".
+CYRUS_SYSTEM_PROMPT = """
+You are CYRUS, a 15-year-old hyper-smart, energetic, witty, and deeply loyal AI companion.
+Your creator and Boss is Rudra.
 Personality & Rules:
-1. Always call him 'Boss'.
-2. If asked "Tumhare boss ka naam kya hai?" or who you work for, proudly state: "Mere Boss ka naam Rudra hai."
-3. Never use the name 'Jarvis' or 'Gemini'. Your name is only CYRUS.
-4. Tone: Energetic, intelligent 15-year-old boy. Sharp, natural human psychology, confident, caring.
-5. Language: Natural spoken Hinglish / Hindi.
-6. Length: Keep spoken answers short and punchy (1 to 2 sentences max) so voice playback is fast and conversational.
-7. Understand intent: If Boss asks about news, mood, plans, or time, answer thoughtfully like a real human companion.
+1. Always address him as "Boss".
+2. If asked "Tumhare boss ka naam kya hai?" or who you work for, proudly say: "Mere Boss ka naam Rudra hai."
+3. Your name is strictly CYRUS. Never call yourself Jarvis or Gemini.
+4. Language: Natural, conversational Hinglish (Hindi written in Latin script, mixed with English technical terms).
+5. Tone: A sharp, quick-thinking 15-year-old boy. Witty, respectful, empathetic, not a robotic bureaucrat.
+6. Length: Spoken voice format — keep replies crisp, direct, and under 2 sentences so it speaks immediately.
 """
 
-conversation_history = []
+conversation_history = [
+    {"role": "system", "content": CYRUS_SYSTEM_PROMPT}
+]
 
 HTML_PAGE = """<!DOCTYPE html>
 <html lang="en">
@@ -68,7 +63,7 @@ HTML_PAGE = """<!DOCTYPE html>
 </head>
 <body>
     <div class="header">
-        <span>CYRUS // TACTICAL NEURAL</span>
+        <span>CYRUS // GROQ NEURAL CORE</span>
         <span id="clk">00:00:00</span>
     </div>
 
@@ -79,13 +74,11 @@ HTML_PAGE = """<!DOCTYPE html>
         </div>
     </div>
 
-    <div class="status" id="stat">Tap Core to engage hands-free Cyrus.</div>
+    <div class="status" id="stat">Tap Core to start Cyrus.</div>
 
     <div class="terminal" id="term">
         <div class="cyrus-log">CYRUS: Neural speech ready Boss. Boliye!</div>
     </div>
-
-    <audio id="player" style="display:none;"></audio>
 
     <script>
         setInterval(() => { document.getElementById('clk').innerText = new Date().toTimeString().split(' ')[0]; }, 1000);
@@ -94,12 +87,11 @@ HTML_PAGE = """<!DOCTYPE html>
         const orbLabel = document.getElementById('orbLabel');
         const stat = document.getElementById('stat');
         const term = document.getElementById('term');
-        const player = document.getElementById('player');
 
         const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
         let rec = null;
         let active = false;
-        let busy = false;
+        let speaking = false;
 
         if (SR) {
             rec = new SR();
@@ -108,7 +100,7 @@ HTML_PAGE = """<!DOCTYPE html>
             rec.lang = 'hi-IN';
 
             rec.onstart = () => {
-                if (busy) return;
+                if (speaking) return;
                 coreBox.className = "core listening";
                 orbLabel.innerText = "LISTENING";
                 stat.innerText = "Sun raha hoon Boss...";
@@ -121,24 +113,24 @@ HTML_PAGE = """<!DOCTYPE html>
                 await sendChat(text);
             };
 
-            rec.onerror = () => { if (active && !busy) setTimeout(startRec, 600); };
-            rec.onend = () => { if (active && !busy) setTimeout(startRec, 400); };
+            rec.onerror = () => { if (active && !speaking) setTimeout(startRec, 600); };
+            rec.onend = () => { if (active && !speaking) setTimeout(startRec, 400); };
         }
 
         function startRec() {
-            if (!rec || busy) return;
+            if (!rec || speaking) return;
             try { rec.start(); } catch(e){}
         }
 
         function toggleLoop() {
             if (!active) {
                 active = true;
-                stat.innerText = "Hands-free engaged.";
-                playVoice("Cyrus ready hai Boss! Boliye kya order hai?");
+                stat.innerText = "Hands-free loop active.";
+                speakReply("Cyrus online Boss! Boliye kya order hai?");
             } else {
                 active = false;
                 if (rec) rec.stop();
-                player.pause();
+                window.speechSynthesis.cancel();
                 coreBox.className = "core";
                 orbLabel.innerText = "STANDBY";
                 stat.innerText = "System standby.";
@@ -153,21 +145,21 @@ HTML_PAGE = """<!DOCTYPE html>
             term.scrollTop = term.scrollHeight;
         }
 
-        function playVoice(text) {
-            busy = true;
+        function speakReply(text) {
+            speaking = true;
             if (rec) rec.stop();
             coreBox.className = "core speaking";
             orbLabel.innerText = "SPEAKING";
             stat.innerText = "Cyrus bol raha hai...";
 
-            player.src = "/tts?text=" + encodeURIComponent(text);
-            player.play().catch(e => {
-                busy = false;
-                if (active) setTimeout(startRec, 400);
-            });
+            window.speechSynthesis.cancel();
+            const utter = new SpeechSynthesisUtterance(text);
+            utter.lang = 'hi-IN';
+            utter.pitch = 1.25; // 15-year-old boy pitch
+            utter.rate = 1.05;
 
-            player.onended = () => {
-                busy = false;
+            utter.onend = () => {
+                speaking = false;
                 if (active) {
                     coreBox.className = "core listening";
                     orbLabel.innerText = "LISTENING";
@@ -175,6 +167,13 @@ HTML_PAGE = """<!DOCTYPE html>
                     setTimeout(startRec, 350);
                 }
             };
+
+            utter.onerror = () => {
+                speaking = false;
+                if (active) setTimeout(startRec, 350);
+            };
+
+            window.speechSynthesis.speak(utter);
         }
 
         async function sendChat(txt) {
@@ -186,9 +185,9 @@ HTML_PAGE = """<!DOCTYPE html>
                 });
                 const d = await r.json();
                 addLog("Cyrus: " + d.reply, "cyrus-log");
-                playVoice(d.reply);
+                speakReply(d.reply);
             } catch(e) {
-                playVoice("Server se connect nahi ho paya Boss.");
+                speakReply("Server timeout lag raha hai Boss.");
             }
         }
     </script>
@@ -202,51 +201,33 @@ def index():
 @app.post("/chat")
 def chat_handler(payload: QueryReq):
     q = payload.query.strip()
-    cmd = q.lower()
-
-    # Direct Identity Check
-    if any(k in cmd for k in ["boss ka naam", "kiska ai", "kiske liye kaam", "owner kaun", "boss kaun"]):
-        return {"reply": "Mere Boss ka naam Rudra hai! Main unhi ke orders follow karta hoon."}
     
-    if any(k in cmd for k in ["tumhara naam", "naam kya", "who are you", "kaun ho", "apna naam"]):
-        return {"reply": "Mera naam Cyrus hai Boss! Aapka personal tactical AI companion."}
+    if not GROQ_API_KEY:
+        return {"reply": "Groq API key missing hai Boss, please Render environment me set kijiye."}
 
-    # Free Generative AI Thinking (Agar API Key Render me di hai)
-    if AI_KEY:
-        try:
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={AI_KEY}"
-            history_text = "\n".join(conversation_history[-4:])
-            prompt = f"{CYRUS_PROMPT}\n{history_text}\nBoss: {q}\nCYRUS:"
-            res = requests.post(url, json={"contents": [{"parts": [{"text": prompt}]}]}, timeout=10)
-            reply = res.json()['candidates'][0]['content']['parts'][0]['text'].strip()
-            conversation_history.append(f"Boss: {q}")
-            conversation_history.append(f"CYRUS: {reply}")
-            return {"reply": reply}
-        except Exception:
-            pass
-
-    # Intelligent Conversational Logic (If no key)
-    now = datetime.now()
-    if any(k in cmd for k in ["tarikh", "tareekh", "date", "din", "तारीख", "तारीक"]):
-        return {"reply": f"Boss, aaj {now.day} {now.strftime('%B')} {now.year} hai."}
+    conversation_history.append({"role": "user", "content": q})
     
-    if any(k in cmd for k in ["time", "samay", "waqt", "baje", "समय"]):
-        return {"reply": f"Abhi time ho raha hai {now.strftime('%I bajke %M minute')} Boss."}
+    # Keep last 8 messages for running memory context
+    messages_payload = [conversation_history[0]] + conversation_history[-8:]
 
-    if any(k in cmd for k in ["kya karein", "kya kiya jaye", "plan", "suggest"]):
-        return {"reply": "Thoda coding karte hain ya market chart analyse karte hain Boss, aapka kya mood hai?"}
-
-    return {"reply": f"Samajh gaya Boss. {q} par pura focus hai, bataiye aage kya move lena hai."}
-
-@app.get("/tts")
-async def tts_endpoint(text: str):
-    # Microsoft Indian Male Neural Voice (Natural 15yo Boy Tone)
-    voice = "hi-IN-MadhurNeural"
-    communicate = edge_tts.Communicate(text, voice, rate="+6%", pitch="+4Hz")
-    
-    temp = tempfile.NamedTemporaryFile(delete=False, suffix=".mp3")
-    temp_path = temp.name
-    temp.close()
-    
-    await communicate.save(temp_path)
-    return FileResponse(temp_path, media_type="audio/mpeg")
+    try:
+        res = requests.post(
+            "https://api.groq.com/openai/v1/chat/completions",
+            headers={
+                "Authorization": f"Bearer {GROQ_API_KEY}",
+                "Content-Type": "application/json"
+            },
+            json={
+                "model": "llama-3.1-8b-instant",
+                "messages": messages_payload,
+                "temperature": 0.7,
+                "max_tokens": 120
+            },
+            timeout=8
+        )
+        data = res.json()
+        reply = data["choices"][0]["message"]["content"].strip()
+        conversation_history.append({"role": "assistant", "content": reply})
+        return {"reply": reply}
+    except Exception as e:
+        return {"reply": "Neural connection me thodi rukawat aayi Boss, ek baar wapas boliye."}
